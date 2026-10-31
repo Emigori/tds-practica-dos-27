@@ -83,7 +83,7 @@ La API usa JSON y está disponible en el mismo puerto que la página. Las horas 
 | `GET` | `/api/reservations` | Lista las reservaciones, incluidas las canceladas, con el número del espacio asociado cuando existe. |
 | `POST` | `/api/reservations` | Crea una reservación. Devuelve `201` al crearla, `400` por datos inválidos, `404` si el espacio no existe o `409` si no puede reservarse. |
 | `PATCH` | `/api/reservations/:id/cancel` | Cancela una reservación. Devuelve la reservación actualizada o `404` si no existe. |
-| `PATCH` | `/api/reservations/:id/extend` | **Pendiente en esta práctica.** La ruta está preparada y responde `501` hasta que se implemente. |
+| `PATCH` | `/api/reservations/:id/extend` | Extiende la hora final de una reservación ACTIVE y vigente. Body: `{ "endTime": "ISO" }`. Devuelve `200` con la reservación, `400` si la hora no es válida o no es posterior a la actual, `404` si no existe y `409` si ya terminó, está cancelada o choca con otra reservación activa. |
 
 Para crear una reservación, primero consulta `GET /api/spots` y usa el `id` de uno de sus elementos:
 
