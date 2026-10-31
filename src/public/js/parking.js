@@ -210,9 +210,26 @@ function renderReservations() {
 
     if (isCurrent) {
       const actions = makeElement('div', 'reservation-actions');
-      // TODO PRACTICE 2:
-      // Add an extension action for eligible reservations and connect it to
-      // the extension form. Keep the cancellation action working.
+      const extendButton = makeElement('button', 'button button-quiet', 'Extender');
+      extendButton.type = 'button';
+      extendButton.setAttribute('aria-expanded', 'false');
+      extendButton.setAttribute('aria-label', `Extender la reservación del espacio ${number}`);
+      let extendForm = null;
+      extendButton.addEventListener('click', () => {
+        if (extendForm) {
+          extendForm.remove();
+          extendForm = null;
+          extendButton.textContent = 'Extender';
+          extendButton.setAttribute('aria-expanded', 'false');
+          return;
+        }
+        extendForm = createExtendForm(reservation);
+        card.append(extendForm);
+        extendButton.textContent = 'Cerrar';
+        extendButton.setAttribute('aria-expanded', 'true');
+        extendForm.querySelector('input').focus();
+      });
+      actions.append(extendButton);
       const cancelButton = makeElement('button', 'button button-danger', 'Cancelar');
       cancelButton.type = 'button';
       cancelButton.addEventListener('click', () => {
@@ -243,9 +260,64 @@ function createExtendForm(reservation) {
   const message = makeElement('p', 'extend-message');
   message.setAttribute('role', 'alert');
   form.append(label, button, message);
-  // TODO PRACTICE 2:
-  // Read the requested time, send the extension request, handle the result,
-  // and refresh the affected views when the operation succeeds.
+
+  // Suggest one more hour after the current end time.
+  const currentEnd = new Date(reservation.endTime);
+  input.value = localDateTime(new Date(currentEnd.getTime() + 3600000));
+  input.min = localDateTime(currentEnd);
+  form.noValidate = true; // show our own Spanish feedback instead of the browser bubble
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    message.textContent = '';
+    const newEnd = new Date(input.value);
+    if (!input.value || Number.isNaN(newEnd.getTime())) {
+      message.textContent = 'Captura una fecha y hora válidas.';
+      return;
+    }
+    if (newEnd <= currentEnd) {
+      message.textContent = 'La nueva hora final debe ser posterior a la hora final actual.';
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Guardando...';
+    try {
+      const response = await fetch(`/api/reservations/${reservation._id}/extend`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endTime: newEnd.toISOString() })
+      });
+
+      // fetch() only rejects on network errors, so 4xx/5xx are checked here.
+      if (!response.ok) {
+        const errorMessages = {
+          400: 'La nueva hora final no es válida. Debe ser posterior a la hora final actual.',
+          404: 'La reservación no fue encontrada. Actualiza la lista.',
+          409: 'No se puede extender: el horario choca con otra reservación o la reservación ya no está activa.'
+        };
+        message.textContent = errorMessages[response.status] ?? 'No fue posible extender la reservación.';
+        if (response.status === 404 || response.status === 409) {
+          setMessage(reservationsMessage, message.textContent, 'error');
+        }
+        return;
+      }
+
+      const updated = await response.json();
+      await Promise.all([loadReservations(), loadSpots()]);
+      setMessage(
+        reservationsMessage,
+        `Reservación extendida correctamente. Nueva hora final: ${timeFormatter.format(new Date(updated.endTime))}`,
+        'success'
+      );
+    } catch (error) {
+      console.error(error);
+      message.textContent = 'No fue posible extender la reservación. Revisa tu conexión.';
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Guardar extensión';
+    }
+  });
   return form;
 }
 
