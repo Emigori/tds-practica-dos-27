@@ -31,8 +31,25 @@ export function validateExtensionEndTime(
   newEndTime: unknown,
   now: Date
 ): Date | null {
-  // TODO PRACTICE 2:
-  // Determine whether the requested end time is a valid extension of the
-  // current reservation. Return the parsed date only when it is valid.
-  return null;
+  // The new end time must arrive as a date-time string (ISO 8601 from the API).
+  if (typeof newEndTime !== 'string' || newEndTime.trim() === '') {
+    return null;
+  }
+
+  const newEnd = new Date(newEndTime);
+  if (Number.isNaN(newEnd.getTime())) {
+    return null;
+  }
+
+  // A reservation whose end time already happened can no longer be extended.
+  if (currentEnd <= now) {
+    return null;
+  }
+
+  // An extension must be strictly later than the current end time.
+  if (newEnd <= currentEnd) {
+    return null;
+  }
+
+  return newEnd;
 }
